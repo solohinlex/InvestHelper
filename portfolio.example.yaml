@@ -1,0 +1,11 @@
+currency: RUB
+cash: 50000
+positions:
+  - ticker: SBER
+    quantity: 100
+    avg_price: 280.5
+    board: TQBR
+  - ticker: LQDT
+    quantity: 20
+    avg_price: 1.45
+    board: TQBR
