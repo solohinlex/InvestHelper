@@ -34,3 +34,6 @@ portfolio.json
 prompts/*
 !prompts/system.md
 *.local.md
+
+# Generated analysis reports (contain real portfolio data)
+reports/

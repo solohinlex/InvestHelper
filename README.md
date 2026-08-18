@@ -10,6 +10,7 @@ CLI-помощник для анализа **российского** инвес
 - Котировки с Мосбиржи без ключа брокера
 - Базовые метрики: стоимость, P&L, доли, концентрация
 - Рекомендации по вашему промпту через собственную модель (`OPENAI_BASE_URL`)
+- Отчёты в `reports/` (markdown с датой в имени файла; в git не попадают)
 
 T-Invest API пока не подключён; позже его можно добавить как источник того же формата портфеля.
 
@@ -79,10 +80,10 @@ invest-helper analyze \
   --prompt "Что ребалансировать?" \
   --dry-run
 
-# Полный анализ с рекомендациями
+# Полный анализ: отчёт в reports/YYYY-MM-DD_HHMMSS_<запрос>.md
 invest-helper analyze \
   --portfolio portfolio.yaml \
-  --prompt "Что ребалансировать на горизонте 3–6 месяцев?"
+  --prompt "Еженедельный отчёт"
 
 # Свой файл или каталог промптов
 invest-helper analyze \
@@ -96,7 +97,7 @@ invest-helper analyze \
 ## Архитектура
 
 ```
-portfolio.yaml ──► CLI ──► MOEX ISS ──► snapshot ──► LLM ──► markdown
+portfolio.yaml ──► CLI ──► MOEX ISS ──► snapshot ──► LLM ──► reports/*.md
                    ▲                      ▲
                    └── user prompt ───────┘
 ```

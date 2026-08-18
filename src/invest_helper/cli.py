@@ -6,7 +6,6 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from rich.markdown import Markdown
 from rich.table import Table
 
 from invest_helper import __version__
@@ -16,6 +15,7 @@ from invest_helper.llm import generate_recommendations
 from invest_helper.moex import MoexClient, MoexError
 from invest_helper.portfolio import load_portfolio
 from invest_helper.prompts import format_prompt_files, resolve_prompt_files
+from invest_helper.reports import DEFAULT_REPORTS_DIR, build_report_markdown, save_report
 
 app = typer.Typer(
     name="invest-helper",
@@ -51,7 +51,7 @@ def analyze(
     dry_run: bool = typer.Option(
         False,
         "--dry-run",
-        help="Показать снимок портфеля без вызова LLM",
+        help="Сохранить снимок портфеля без вызова LLM",
     ),
     system_prompt: Path | None = typer.Option(
         None,
@@ -62,6 +62,13 @@ def analyze(
         file_okay=True,
         readable=True,
         help="Файл или каталог промптов. По умолчанию все .md/.txt из prompts/",
+    ),
+    reports_dir: Path = typer.Option(
+        DEFAULT_REPORTS_DIR,
+        "--reports-dir",
+        "-o",
+        file_okay=False,
+        help="Каталог для markdown-отчётов",
     ),
 ) -> None:
     """Загрузить портфель, подтянуть котировки MOEX и получить рекомендации."""
@@ -89,25 +96,35 @@ def analyze(
         raise typer.Exit(code=1) from exc
 
     snapshot_md = format_snapshot_markdown(snapshot)
-    console.print(Markdown(snapshot_md))
+    recommendations: str | None = None
 
     if dry_run:
-        console.print("\n[dim]--dry-run: LLM не вызывался[/dim]")
-        return
+        console.print("[dim]--dry-run: LLM не вызывался[/dim]")
+    else:
+        console.print("[dim]Снимок готов, запрос к модели…[/dim]")
+        try:
+            recommendations = generate_recommendations(
+                settings,
+                prompt,
+                snapshot,
+                system_prompt_path=system_prompt,
+            )
+        except Exception as exc:  # noqa: BLE001
+            err_console.print(f"[red]LLM:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
 
-    console.print("\n[bold]Рекомендации[/bold]\n")
+    report_md = build_report_markdown(
+        prompt=prompt,
+        snapshot_md=snapshot_md,
+        recommendations=recommendations,
+    )
     try:
-        answer = generate_recommendations(
-            settings,
-            prompt,
-            snapshot,
-            system_prompt_path=system_prompt,
-        )
-    except Exception as exc:  # noqa: BLE001
-        err_console.print(f"[red]LLM:[/red] {exc}")
+        saved = save_report(report_md, prompt=prompt, reports_dir=reports_dir)
+    except OSError as exc:
+        err_console.print(f"[red]Не удалось сохранить отчёт:[/red] {exc}")
         raise typer.Exit(code=1) from exc
 
-    console.print(Markdown(answer))
+    console.print(f"Отчёт сохранён: [bold]{saved}[/bold]")
 
 
 @app.command("doctor")
