@@ -39,13 +39,15 @@ cp portfolio.example.yaml portfolio.yaml
 | `OPENAI_MODEL` | Имя модели |
 | `OPENAI_TIMEOUT_SECONDS` | Таймаут LLM (по умолчанию 120) |
 | `MOEX_TIMEOUT_SECONDS` | Таймаут MOEX ISS (по умолчанию 30) |
-| `SYSTEM_PROMPT_PATH` | Путь к system prompt (по умолчанию `prompts/system.md`) |
+| `SYSTEM_PROMPT_PATH` | Путь к файлу или каталогу промптов (по умолчанию все `.md`/`.txt` из `prompts/`) |
 
 ## Системный промпт
 
-Инструкции для модели лежат в [`prompts/system.md`](prompts/system.md) — правьте этот файл под свою стратегию анализа.
+Базовые инструкции — [`prompts/system.md`](prompts/system.md).
 
-Можно переопределить путь через `SYSTEM_PROMPT_PATH` или флаг `--system-prompt`.
+В модель уходят **все** `.md` / `.txt` из каталога `prompts/`: сначала `system.md`, затем остальные по имени файла. Дополнительные файлы в git не попадают.
+
+Можно переопределить путь к файлу или каталогу через `SYSTEM_PROMPT_PATH` или флаг `--system-prompt`.
 
 ## Формат портфеля
 
@@ -82,11 +84,11 @@ invest-helper analyze \
   --portfolio portfolio.yaml \
   --prompt "Что ребалансировать на горизонте 3–6 месяцев?"
 
-# Свой system prompt
+# Свой файл или каталог промптов
 invest-helper analyze \
   --portfolio portfolio.yaml \
   --prompt "..." \
-  --system-prompt prompts/system.md
+  --system-prompt prompts
 ```
 
 Эквивалентно: `python -m invest_helper ...`.

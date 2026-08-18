@@ -32,7 +32,7 @@ def generate_recommendations(
         )
 
     path = system_prompt_path or (settings.system_prompt_path.strip() or None)
-    system_prompt = load_system_prompt(str(path) if path else None)
+    system_prompt = load_system_prompt(path)
 
     client = OpenAI(
         api_key=settings.openai_api_key,

@@ -29,3 +29,8 @@ portfolio.yaml
 portfolio.json
 *.local.yaml
 *.local.json
+
+# Extra / personal prompts — only prompts/system.md is public
+prompts/*
+!prompts/system.md
+*.local.md

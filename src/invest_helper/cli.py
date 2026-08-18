@@ -15,7 +15,7 @@ from invest_helper.config import get_settings
 from invest_helper.llm import generate_recommendations
 from invest_helper.moex import MoexClient, MoexError
 from invest_helper.portfolio import load_portfolio
-from invest_helper.prompts import resolve_system_prompt_path
+from invest_helper.prompts import format_prompt_files, resolve_prompt_files
 
 app = typer.Typer(
     name="invest-helper",
@@ -58,9 +58,10 @@ def analyze(
         "--system-prompt",
         "-s",
         exists=True,
-        dir_okay=False,
+        dir_okay=True,
+        file_okay=True,
         readable=True,
-        help="Путь к system prompt (.md). По умолчанию prompts/system.md",
+        help="Файл или каталог промптов. По умолчанию все .md/.txt из prompts/",
     ),
 ) -> None:
     """Загрузить портфель, подтянуть котировки MOEX и получить рекомендации."""
@@ -134,10 +135,8 @@ def doctor() -> None:
     )
 
     try:
-        prompt_path = resolve_system_prompt_path(
-            settings.system_prompt_path.strip() or None
-        )
-        prompt_status = f"[green]ok[/green] ({prompt_path})"
+        prompt_files = resolve_prompt_files(settings.system_prompt_path.strip() or None)
+        prompt_status = f"[green]ok[/green] ({format_prompt_files(prompt_files)})"
     except Exception as exc:  # noqa: BLE001
         prompt_status = f"[red]ошибка[/red] ({exc})"
     table.add_row("System prompt", prompt_status)
