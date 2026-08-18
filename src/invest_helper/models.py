@@ -28,10 +28,53 @@ class Position(BaseModel):
         return board or None
 
 
+class AllocationClass(BaseModel):
+    name: str
+    tickers: list[str] = Field(default_factory=list)
+    target_pct: float | None = None
+    include_cash: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        name = value.strip()
+        if not name:
+            raise ValueError("allocation class name must not be empty")
+        return name
+
+    @field_validator("tickers")
+    @classmethod
+    def normalize_tickers(cls, values: list[str]) -> list[str]:
+        tickers: list[str] = []
+        for item in values:
+            ticker = item.strip().upper()
+            if ticker and ticker not in tickers:
+                tickers.append(ticker)
+        return tickers
+
+
+class Allocation(BaseModel):
+    """Optional per-portfolio mix. Excluded tickers are out of the class-weight denominator."""
+
+    exclude: list[str] = Field(default_factory=list)
+    classes: list[AllocationClass] = Field(default_factory=list)
+
+    @field_validator("exclude")
+    @classmethod
+    def normalize_exclude(cls, values: list[str]) -> list[str]:
+        tickers: list[str] = []
+        for item in values:
+            ticker = item.strip().upper()
+            if ticker and ticker not in tickers:
+                tickers.append(ticker)
+        return tickers
+
+
 class Portfolio(BaseModel):
     currency: str = "RUB"
     cash: float = Field(default=0.0, ge=0)
     positions: list[Position] = Field(default_factory=list)
+    allocation: Allocation | None = None
 
     @field_validator("currency")
     @classmethod
@@ -63,6 +106,21 @@ class PositionSnapshot(BaseModel):
     weight: float
 
 
+class ClassSnapshot(BaseModel):
+    name: str
+    value: float
+    weight: float
+    target_pct: float | None = None
+    deviation_pp: float | None = None
+    tickers: list[str] = Field(default_factory=list)
+
+
+class ReferenceSnapshot(BaseModel):
+    ticker: str
+    value: float
+    weight_total: float
+
+
 class PortfolioSnapshot(BaseModel):
     currency: str
     cash: float
@@ -73,3 +131,7 @@ class PortfolioSnapshot(BaseModel):
     total_pnl_pct: float | None
     positions: list[PositionSnapshot]
     top_concentration: list[tuple[str, float]]
+    allocation_base: float | None = None
+    classes: list[ClassSnapshot] = Field(default_factory=list)
+    reference: list[ReferenceSnapshot] = Field(default_factory=list)
+    unmapped: list[ReferenceSnapshot] = Field(default_factory=list)

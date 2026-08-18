@@ -9,3 +9,15 @@ positions:
     quantity: 20
     avg_price: 1.45
     board: TQBR
+
+# Опционально: своя схема классов. Без этого блока доли классов не считаются.
+# allocation:
+#   exclude: []          # тикеры вне знаменателя классов
+#   classes:
+#     - name: Акции
+#       tickers: [SBER]
+#       target_pct: 80
+#     - name: Деньги
+#       tickers: []
+#       target_pct: 20
+#       include_cash: true
