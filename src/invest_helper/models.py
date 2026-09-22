@@ -91,6 +91,30 @@ class Quote(BaseModel):
     last_price: float
     prev_price: float | None = None
     source: str = "moex_iss"
+    short_name: str | None = None
+    sec_name: str | None = None
+    isin: str | None = None
+    open_price: float | None = None
+    high_price: float | None = None
+    low_price: float | None = None
+    day_change_pct: float | None = None
+    volume_today: float | None = None
+    value_today: float | None = None
+    num_trades: int | None = None
+    bid: float | None = None
+    offer: float | None = None
+    spread: float | None = None
+    market_cap: float | None = None
+    lot_size: float | None = None
+    list_level: int | None = None
+    trading_status: str | None = None
+    update_time: str | None = None
+    return_1w_pct: float | None = None
+    return_1m_pct: float | None = None
+    return_3m_pct: float | None = None
+    return_1y_pct: float | None = None
+    high_52w: float | None = None
+    low_52w: float | None = None
 
 
 class PositionSnapshot(BaseModel):
@@ -104,6 +128,36 @@ class PositionSnapshot(BaseModel):
     pnl: float
     pnl_pct: float | None
     weight: float
+    short_name: str | None = None
+    sec_name: str | None = None
+    isin: str | None = None
+    prev_price: float | None = None
+    open_price: float | None = None
+    high_price: float | None = None
+    low_price: float | None = None
+    day_change_pct: float | None = None
+    day_range_pos_pct: float | None = None
+    volume_today: float | None = None
+    value_today: float | None = None
+    num_trades: int | None = None
+    bid: float | None = None
+    offer: float | None = None
+    spread: float | None = None
+    market_cap: float | None = None
+    lot_size: float | None = None
+    lots: float | None = None
+    list_level: int | None = None
+    trading_status: str | None = None
+    update_time: str | None = None
+    return_1w_pct: float | None = None
+    return_1m_pct: float | None = None
+    return_3m_pct: float | None = None
+    return_1y_pct: float | None = None
+    high_52w: float | None = None
+    low_52w: float | None = None
+    range_52w_pos_pct: float | None = None
+    class_name: str | None = None
+    weight_in_class: float | None = None
 
 
 class ClassSnapshot(BaseModel):

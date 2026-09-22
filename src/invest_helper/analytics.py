@@ -28,6 +28,11 @@ def build_snapshot(portfolio: Portfolio, quotes: dict[str, Quote]) -> PortfolioS
         value = position.quantity * quote.last_price
         pnl = value - cost
         pnl_pct = (pnl / cost * 100.0) if cost > 0 else None
+        lots = (
+            (position.quantity / quote.lot_size)
+            if quote.lot_size and quote.lot_size > 0
+            else None
+        )
 
         positions.append(
             PositionSnapshot(
@@ -41,6 +46,38 @@ def build_snapshot(portfolio: Portfolio, quotes: dict[str, Quote]) -> PortfolioS
                 pnl=pnl,
                 pnl_pct=pnl_pct,
                 weight=0.0,
+                short_name=quote.short_name,
+                sec_name=quote.sec_name,
+                isin=quote.isin,
+                prev_price=quote.prev_price,
+                open_price=quote.open_price,
+                high_price=quote.high_price,
+                low_price=quote.low_price,
+                day_change_pct=quote.day_change_pct,
+                day_range_pos_pct=_range_pos(
+                    quote.last_price, quote.low_price, quote.high_price
+                ),
+                volume_today=quote.volume_today,
+                value_today=quote.value_today,
+                num_trades=quote.num_trades,
+                bid=quote.bid,
+                offer=quote.offer,
+                spread=quote.spread,
+                market_cap=quote.market_cap,
+                lot_size=quote.lot_size,
+                lots=lots,
+                list_level=quote.list_level,
+                trading_status=quote.trading_status,
+                update_time=quote.update_time,
+                return_1w_pct=quote.return_1w_pct,
+                return_1m_pct=quote.return_1m_pct,
+                return_3m_pct=quote.return_3m_pct,
+                return_1y_pct=quote.return_1y_pct,
+                high_52w=quote.high_52w,
+                low_52w=quote.low_52w,
+                range_52w_pos_pct=_range_pos(
+                    quote.last_price, quote.low_52w, quote.high_52w
+                ),
             )
         )
         positions_value += value
@@ -63,6 +100,7 @@ def build_snapshot(portfolio: Portfolio, quotes: dict[str, Quote]) -> PortfolioS
         cash=portfolio.cash,
         total_value=total_value,
     )
+    _apply_class_weights(positions, classes)
 
     return PortfolioSnapshot(
         currency=portfolio.currency,
@@ -79,6 +117,29 @@ def build_snapshot(portfolio: Portfolio, quotes: dict[str, Quote]) -> PortfolioS
         reference=reference,
         unmapped=unmapped,
     )
+
+
+def _range_pos(last: float | None, low: float | None, high: float | None) -> float | None:
+    if last is None or low is None or high is None:
+        return None
+    span = high - low
+    if span <= 0:
+        return None
+    return (last - low) / span * 100.0
+
+
+def _apply_class_weights(positions: list[PositionSnapshot], classes: list[ClassSnapshot]) -> None:
+    by_ticker: dict[str, ClassSnapshot] = {}
+    for item in classes:
+        for ticker in item.tickers:
+            by_ticker[ticker] = item
+    for position in positions:
+        owner = by_ticker.get(position.ticker)
+        if owner is None:
+            continue
+        position.class_name = owner.name
+        if owner.value > 0:
+            position.weight_in_class = position.value / owner.value * 100.0
 
 
 def _weight(part: float, whole: float) -> float:
@@ -146,6 +207,14 @@ def _build_allocation(
     return allocation_base, classes, reference, unmapped
 
 
+def _fmt_num(value: float | None, spec: str = ",.2f", *, signed: bool = False) -> str:
+    if value is None:
+        return "—"
+    if signed:
+        return format(value, f"+{spec}")
+    return format(value, spec)
+
+
 def format_snapshot_markdown(snapshot: PortfolioSnapshot) -> str:
     lines = [
         f"# Снимок портфеля ({snapshot.currency})",
@@ -163,17 +232,50 @@ def format_snapshot_markdown(snapshot: PortfolioSnapshot) -> str:
         "",
         "## Позиции",
         "",
-        "| Тикер | Board | Кол-во | Ср. цена | Last | Стоимость | P&L | Доля % |",
-        "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Тикер | Имя | Board | Кол-во | Ср. цена | Last | День % | Стоимость | P&L | Доля % |",
+        "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
 
     for p in snapshot.positions:
         pnl_cell = f"{p.pnl:,.2f}"
         if p.pnl_pct is not None:
             pnl_cell += f" ({p.pnl_pct:+.2f}%)"
+        name = p.short_name or "—"
         lines.append(
-            f"| {p.ticker} | {p.board} | {p.quantity:g} | {p.avg_price:,.4f} "
-            f"| {p.last_price:,.4f} | {p.value:,.2f} | {pnl_cell} | {p.weight:.2f} |"
+            f"| {p.ticker} | {name} | {p.board} | {p.quantity:g} | {p.avg_price:,.4f} "
+            f"| {p.last_price:,.4f} | {_fmt_num(p.day_change_pct, '.2f', signed=True)} "
+            f"| {p.value:,.2f} | {pnl_cell} | {p.weight:.2f} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Рынок позиций",
+            "",
+            "День % и OHLC — сегодняшняя сессия MOEX. 1н/1м/3м/1г и 52н — "
+            "по дневным свечам ISS. Капитализация — ISSUECAPITALIZATION. "
+            "МСФО, мультипликаторы и дивиденды в снимке отсутствуют.",
+            "",
+            "| Тикер | Класс | Доля класса % | Open | High | Low | В дне % | "
+            "Оборот ₽ | Спред | Капит. | 1н % | 1м % | 3м % | 1г % | "
+            "52н min | 52н max | В 52н % |",
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | "
+            "---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for p in snapshot.positions:
+        lines.append(
+            f"| {p.ticker} | {p.class_name or '—'} | {_fmt_num(p.weight_in_class)} "
+            f"| {_fmt_num(p.open_price, ',.4f')} | {_fmt_num(p.high_price, ',.4f')} "
+            f"| {_fmt_num(p.low_price, ',.4f')} | {_fmt_num(p.day_range_pos_pct)} "
+            f"| {_fmt_num(p.value_today, ',.0f')} | {_fmt_num(p.spread, ',.4f')} "
+            f"| {_fmt_num(p.market_cap, ',.0f')} "
+            f"| {_fmt_num(p.return_1w_pct, '.2f', signed=True)} "
+            f"| {_fmt_num(p.return_1m_pct, '.2f', signed=True)} "
+            f"| {_fmt_num(p.return_3m_pct, '.2f', signed=True)} "
+            f"| {_fmt_num(p.return_1y_pct, '.2f', signed=True)} "
+            f"| {_fmt_num(p.low_52w, ',.4f')} | {_fmt_num(p.high_52w, ',.4f')} "
+            f"| {_fmt_num(p.range_52w_pos_pct)} |"
         )
 
     lines.extend(["", "## Концентрация (топ)", ""])
@@ -233,5 +335,37 @@ def format_snapshot_markdown(snapshot: PortfolioSnapshot) -> str:
                 lines.append(
                     f"| {item.ticker} | {item.value:,.2f} | {item.weight_total:.2f} |"
                 )
+
+    lines.extend(
+        [
+            "",
+            "## Как читать цифры",
+            "",
+            "Краткие определения для снимка. Это не оценка «покупать/продавать» "
+            "и не вывод о здоровье бизнеса.",
+            "",
+            "- **Ср. цена** — ваша средняя цена покупки, не цена рынка.",
+            "- **Last** — последняя сделка на Мосбирже.",
+            "- **P&L** — сколько вы в плюсе или минусе относительно своей средней, "
+            "а не относительно вчера или прошлого года.",
+            "- **Доля %** в таблице позиций — кусок всего капитала, включая TPAY. "
+            "**Доля класса %** — кусок только своего класса (акции / золото / деньги).",
+            "- **День %** — ход цены сегодня к вчерашнему закрытию. Один день — шум.",
+            "- **Open / High / Low** — открытие, максимум и минимум сегодняшней сессии.",
+            "- **В дне %** — где last между сегодняшним low и high "
+            "(0% у минимума дня, 100% у максимума).",
+            "- **1н / 1м / 3м / 1г %** — ход бумаги за период по дневным свечам, "
+            "не доходность вашего лота (лот смотри в P&L).",
+            "- **52н min/max** — минимум и максимум цены примерно за год. "
+            "**В 52н %** — где last в этом коридоре. Это не «дешёвая/дорогая компания».",
+            "- **Оборот и спред** — насколько бумага торгуется и насколько "
+            "широкая щель между покупкой и продажей. Узкий спред и большой оборот — "
+            "проще выйти; это не сигнал сделки.",
+            "- **Капит.** — оценка стоимости всей компании (капитализация выпуска). "
+            "У БПИФ часто пусто — так и должно быть.",
+            "- Пустые 3м/1г у фондов — мало истории на бирже, не ошибка.",
+            "- В снимке нет МСФО, прибыли, долга, дивидендов и новостей.",
+        ]
+    )
 
     return "\n".join(lines)
