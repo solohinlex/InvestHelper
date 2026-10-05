@@ -13,7 +13,12 @@ from invest_helper.models import (
 )
 
 
-def build_snapshot(portfolio: Portfolio, quotes: dict[str, Quote]) -> PortfolioSnapshot:
+def build_snapshot(
+    portfolio: Portfolio,
+    quotes: dict[str, Quote],
+    *,
+    missing_quotes: list[str] | None = None,
+) -> PortfolioSnapshot:
     positions: list[PositionSnapshot] = []
     positions_value = 0.0
     total_cost = 0.0
@@ -22,7 +27,7 @@ def build_snapshot(portfolio: Portfolio, quotes: dict[str, Quote]) -> PortfolioS
     for position in portfolio.positions:
         quote = quotes.get(position.ticker)
         if quote is None:
-            raise KeyError(f"Missing quote for {position.ticker}")
+            continue
 
         cost = position.quantity * position.avg_price
         value = position.quantity * quote.last_price
@@ -116,6 +121,7 @@ def build_snapshot(portfolio: Portfolio, quotes: dict[str, Quote]) -> PortfolioS
         classes=classes,
         reference=reference,
         unmapped=unmapped,
+        missing_quotes=list(missing_quotes or []),
     )
 
 
@@ -142,6 +148,10 @@ def _apply_class_weights(positions: list[PositionSnapshot], classes: list[ClassS
             position.weight_in_class = position.value / owner.value * 100.0
 
 
+def _cash_outside(snapshot: PortfolioSnapshot) -> bool:
+    return any(item.ticker == "Кэш" for item in snapshot.reference)
+
+
 def _weight(part: float, whole: float) -> float:
     return (part / whole * 100.0) if whole > 0 else 0.0
 
@@ -162,6 +172,10 @@ def _build_allocation(
 
     excluded_value = sum(value_by_ticker.get(ticker, 0.0) for ticker in exclude)
     allocation_base = max(total_value - excluded_value, 0.0)
+    # Free cash is not an investment. It leaves the class base unless a class claims it.
+    cash_in_class = any(item.include_cash for item in allocation.classes)
+    if not cash_in_class:
+        allocation_base = max(allocation_base - cash, 0.0)
 
     for item in allocation.classes:
         value = sum(value_by_ticker.get(ticker, 0.0) for ticker in item.tickers)
@@ -191,6 +205,15 @@ def _build_allocation(
         for ticker in allocation.exclude
         if value_by_ticker.get(ticker, 0.0) > 0
     ]
+    if not cash_in_class and cash > 0:
+        reference.insert(
+            0,
+            ReferenceSnapshot(
+                ticker="Кэш",
+                value=cash,
+                weight_total=_weight(cash, total_value),
+            ),
+        )
 
     unmapped: list[ReferenceSnapshot] = []
     for ticker, value in value_by_ticker.items():
@@ -288,8 +311,10 @@ def format_snapshot_markdown(snapshot: PortfolioSnapshot) -> str:
                 "",
                 "## Классы активного портфеля",
                 "",
-                f"База классов = итого − бумаги из allocation.exclude "
+                f"База классов = итого − allocation.exclude"
+                f"{' − свободный кэш' if _cash_outside(snapshot) else ''} "
                 f"(**{snapshot.allocation_base:,.2f}**). "
+                "Свободный кэш — ещё не вложенная сумма, не класс «Деньги». "
                 "Доли классов считай только от этой базы, не от всего портфеля.",
                 "",
                 "| Класс | Стоимость | Доля от активного % | Цель % | Откл. п.п. |",
@@ -335,6 +360,19 @@ def format_snapshot_markdown(snapshot: PortfolioSnapshot) -> str:
                 lines.append(
                     f"| {item.ticker} | {item.value:,.2f} | {item.weight_total:.2f} |"
                 )
+
+    if snapshot.missing_quotes:
+        lines.extend(
+            [
+                "",
+                "## Нет котировки MOEX",
+                "",
+                "Эти позиции есть в файле, но в итог и доли не входят: "
+                "на Мосбирже нет цены.",
+                "",
+            ]
+        )
+        lines.extend(f"- {ticker}" for ticker in snapshot.missing_quotes)
 
     lines.extend(
         [

@@ -44,13 +44,18 @@ class MoexClient:
     def __exit__(self, *args: object) -> None:
         self.close()
 
-    def fetch_quotes(self, positions: list[Position]) -> dict[str, Quote]:
+    def fetch_quotes(self, positions: list[Position]) -> tuple[dict[str, Quote], list[str]]:
         quotes: dict[str, Quote] = {}
+        missing: list[str] = []
         for position in positions:
-            quote = self.fetch_quote(position.ticker, position.board)
+            try:
+                quote = self.fetch_quote(position.ticker, position.board)
+            except MoexError:
+                missing.append(position.ticker)
+                continue
             self._apply_candle_stats(quote)
             quotes[position.ticker] = quote
-        return quotes
+        return quotes, missing
 
     def fetch_quote(self, ticker: str, board: str | None = None) -> Quote:
         ticker = ticker.upper()

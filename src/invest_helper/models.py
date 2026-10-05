@@ -189,3 +189,4 @@ class PortfolioSnapshot(BaseModel):
     classes: list[ClassSnapshot] = Field(default_factory=list)
     reference: list[ReferenceSnapshot] = Field(default_factory=list)
     unmapped: list[ReferenceSnapshot] = Field(default_factory=list)
+    missing_quotes: list[str] = Field(default_factory=list)

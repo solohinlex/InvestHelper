@@ -20,4 +20,4 @@ positions:
 #     - name: Деньги
 #       tickers: []
 #       target_pct: 20
-#       include_cash: true
+#       include_cash: true   # иначе кэш вне базы классов: это ещё не вложенная сумма

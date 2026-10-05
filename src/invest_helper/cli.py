@@ -75,6 +75,26 @@ def analyze(
     """Загрузить портфель, подтянуть котировки MOEX и получить рекомендации."""
     settings = get_settings()
 
+    if _is_weekly_report(prompt):
+        console.print("[dim]Еженедельный отчёт: синхронизация портфеля…[/dim]")
+        try:
+            result = sync_holdings(
+                portfolio,
+                token=settings.tinvest_token,
+                url=settings.tinvest_mcp_url,
+                timeout=settings.tinvest_timeout_seconds,
+            )
+        except TinvestError as exc:
+            err_console.print(f"[red]T-Invest:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+        except OSError as exc:
+            err_console.print(f"[red]Не удалось записать портфель:[/red] {exc}")
+            raise typer.Exit(code=1) from exc
+        console.print(
+            f"[dim]Синхронизировано счетов: {len(result.account_ids)}, "
+            f"позиций: {len(result.tickers)}[/dim]"
+        )
+
     try:
         loaded = load_portfolio(portfolio)
     except Exception as exc:  # noqa: BLE001 — CLI boundary
@@ -87,8 +107,10 @@ def analyze(
 
     try:
         with MoexClient(timeout=settings.moex_timeout_seconds) as moex:
-            quotes = moex.fetch_quotes(loaded.positions) if loaded.positions else {}
-        snapshot = build_snapshot(loaded, quotes)
+            quotes, missing = (
+                moex.fetch_quotes(loaded.positions) if loaded.positions else ({}, [])
+            )
+        snapshot = build_snapshot(loaded, quotes, missing_quotes=missing)
     except MoexError as exc:
         err_console.print(f"[red]MOEX:[/red] {exc}")
         raise typer.Exit(code=1) from exc
@@ -126,6 +148,11 @@ def analyze(
         raise typer.Exit(code=1) from exc
 
     console.print(f"Отчёт сохранён: [bold]{saved}[/bold]")
+
+
+def _is_weekly_report(prompt: str) -> bool:
+    text = prompt.casefold().replace("ё", "е")
+    return "еженедел" in text or "недел" in text or "weekly" in text
 
 
 @app.command("doctor")
