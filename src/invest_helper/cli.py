@@ -16,6 +16,7 @@ from invest_helper.moex import MoexClient, MoexError
 from invest_helper.portfolio import load_portfolio
 from invest_helper.prompts import format_prompt_files, resolve_prompt_files
 from invest_helper.reports import DEFAULT_REPORTS_DIR, build_report_markdown, save_report
+from invest_helper.tinvest import TinvestError, sync_holdings
 
 app = typer.Typer(
     name="invest-helper",
@@ -168,6 +169,45 @@ def doctor() -> None:
 
     table.add_row("MOEX ISS", moex_status)
     console.print(table)
+
+
+@app.command("sync")
+def sync(
+    portfolio: Path = typer.Option(
+        Path("portfolio.yaml"),
+        "--portfolio",
+        "-p",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        writable=True,
+        help="Файл портфеля: обновить cash и positions со счёта Т-Инвестиций",
+    ),
+) -> None:
+    """Записать в файл портфеля фактические деньги и позиции со счёта Т-Инвестиций."""
+    settings = get_settings()
+    try:
+        result = sync_holdings(
+            portfolio,
+            token=settings.tinvest_token,
+            url=settings.tinvest_mcp_url,
+            timeout=settings.tinvest_timeout_seconds,
+        )
+    except TinvestError as exc:
+        err_console.print(f"[red]T-Invest:[/red] {exc}")
+        raise typer.Exit(code=1) from exc
+
+    console.print(
+        f"Счета ({len(result.account_ids)}): [bold]{', '.join(result.account_ids)}[/bold]"
+    )
+    console.print(f"Кэш: {result.cash:g} ₽")
+    if result.tickers:
+        console.print(f"Позиции ({len(result.tickers)}): {', '.join(result.tickers)}")
+    else:
+        console.print("Позиции: нет")
+    if result.skipped:
+        console.print("Пропущено: " + "; ".join(result.skipped))
+    console.print(f"Файл обновлён: [bold]{portfolio}[/bold]")
 
 
 def run() -> None:

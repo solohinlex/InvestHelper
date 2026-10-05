@@ -22,9 +22,18 @@ class Settings(BaseSettings):
     openai_timeout_seconds: float = Field(default=120.0, alias="OPENAI_TIMEOUT_SECONDS")
     moex_timeout_seconds: float = Field(default=30.0, alias="MOEX_TIMEOUT_SECONDS")
     system_prompt_path: str = Field(default="", alias="SYSTEM_PROMPT_PATH")
+    tinvest_token: str = Field(default="", alias="TINVEST_TOKEN")
+    tinvest_mcp_url: str = Field(
+        default="https://invest-public-api.tbank.ru/mcp",
+        alias="TINVEST_MCP_URL",
+    )
+    tinvest_timeout_seconds: float = Field(default=60.0, alias="TINVEST_TIMEOUT_SECONDS")
 
     def llm_configured(self) -> bool:
         return bool(self.openai_api_key.strip() and self.openai_model.strip())
+
+    def tinvest_configured(self) -> bool:
+        return bool(self.tinvest_token.strip())
 
 
 def get_settings() -> Settings:
