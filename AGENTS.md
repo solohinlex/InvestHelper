@@ -12,6 +12,8 @@ CLI-помощник анализа российского портфеля (MOE
 ## Критично для агента
 
 - `.env` содержит реальные ключи и не попадает в git — не коммить и не логировать ключ. `.env.example` — эталон для документирования.
+- `.cursor/mcp.json` содержит тот же `TINVEST_TOKEN` и тоже в gitignore. Не коммить и не логировать. Образец — `.cursor/mcp.example.json`.
+- Общий разбор счёта — в чате по `.cursor/rules/portfolio-review.mdc`. `sync` и `analyze` под него не расширять и новую команду не добавлять.
 - `portfolio.yaml` и `reports/` в gitignore: содержат реальные позиции/данные, не попадают в git. В `git status` они отсутствуют намеренно. Для работы руками используй `portfolio.yaml` (реальный) и `portfolio.example.yaml` (эталон).
 - Конфигурация читается из `.env` через pydantic-settings (`config.py`). Ключи именами через `SettingsConfigDict`, `extra="ignore"` — новые переменные не поломят загрузку.
 

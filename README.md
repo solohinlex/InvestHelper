@@ -62,6 +62,8 @@ invest-helper sync --portfolio portfolio.yaml
 
 Для доступа к `tbank.ru` в системе должны быть сертификаты Минцифры, иначе соединение не поднимется.
 
+Общий разбор счёта в чате Cursor ходит в тот же MCP напрямую и читает прошлые файлы в `reports/`. Локальный конфиг — [`.cursor/mcp.example.json`](.cursor/mcp.example.json): скопируйте его в `.cursor/mcp.json` и подставьте тот же токен, что в `TINVEST_TOKEN`. Файл `.cursor/mcp.json` в git не попадает. Правило чата — [`.cursor/rules/portfolio-review.mdc`](.cursor/rules/portfolio-review.mdc).
+
 ## Системный промпт
 
 Базовые инструкции — [`prompts/system.md`](prompts/system.md).

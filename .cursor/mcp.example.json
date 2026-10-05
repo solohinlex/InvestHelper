@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "t-invest": {
+      "url": "https://invest-public-api.tbank.ru/mcp",
+      "headers": {
+        "Authorization": "Bearer <TINVEST_TOKEN>"
+      }
+    }
+  }
+}
