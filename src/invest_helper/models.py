@@ -70,11 +70,44 @@ class Allocation(BaseModel):
         return tickers
 
 
+class KeyRate(BaseModel):
+    """Last Bank of Russia decision recorded by the user. Not a forecast."""
+
+    decided_on: str | None = None
+    percent: float | None = None
+    direction: str = "не задано"
+    signal: str | None = None
+
+    @field_validator("decided_on", "signal", mode="before")
+    @classmethod
+    def blank_text(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    @field_validator("direction", mode="before")
+    @classmethod
+    def normalize_direction(cls, value: object) -> str:
+        if value is None:
+            return "не задано"
+        text = str(value).strip().lower().replace("ё", "е")
+        if not text:
+            return "не задано"
+        allowed = {"снижена", "сохранена", "повышена", "не задано"}
+        if text not in allowed:
+            raise ValueError(
+                "key_rate.direction: снижена, сохранена, повышена или не задано"
+            )
+        return text
+
+
 class Portfolio(BaseModel):
     currency: str = "RUB"
     cash: float = Field(default=0.0, ge=0)
     positions: list[Position] = Field(default_factory=list)
     allocation: Allocation | None = None
+    key_rate: KeyRate | None = None
 
     @field_validator("currency")
     @classmethod
@@ -190,3 +223,4 @@ class PortfolioSnapshot(BaseModel):
     reference: list[ReferenceSnapshot] = Field(default_factory=list)
     unmapped: list[ReferenceSnapshot] = Field(default_factory=list)
     missing_quotes: list[str] = Field(default_factory=list)
+    key_rate: KeyRate | None = None

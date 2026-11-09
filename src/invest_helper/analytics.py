@@ -5,6 +5,7 @@ from __future__ import annotations
 from invest_helper.models import (
     Allocation,
     ClassSnapshot,
+    KeyRate,
     Portfolio,
     PortfolioSnapshot,
     PositionSnapshot,
@@ -122,6 +123,7 @@ def build_snapshot(
         reference=reference,
         unmapped=unmapped,
         missing_quotes=list(missing_quotes or []),
+        key_rate=portfolio.key_rate,
     )
 
 
@@ -230,6 +232,23 @@ def _build_allocation(
     return allocation_base, classes, reference, unmapped
 
 
+def _format_key_rate(rate: KeyRate | None) -> str:
+    if rate is None or (
+        rate.direction == "не задано" and rate.percent is None and not rate.signal
+    ):
+        return "- Ключевая ставка: направление не задано"
+    parts: list[str] = []
+    if rate.decided_on:
+        parts.append(rate.decided_on)
+    if rate.percent is not None:
+        parts.append(f"{rate.percent:g}%")
+    parts.append(rate.direction)
+    line = "- Ключевая ставка: " + ", ".join(parts)
+    if rate.signal:
+        line += f". Сигнал: {rate.signal}"
+    return line
+
+
 def _fmt_num(value: float | None, spec: str = ",.2f", *, signed: bool = False) -> str:
     if value is None:
         return "—"
@@ -252,6 +271,7 @@ def format_snapshot_markdown(snapshot: PortfolioSnapshot) -> str:
             if snapshot.total_pnl_pct is not None
             else ""
         ),
+        _format_key_rate(snapshot.key_rate),
         "",
         "## Позиции",
         "",
